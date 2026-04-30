@@ -1,0 +1,14 @@
+# Environment variables
+.env
+
+# Version control
+.git/
+
+# MacOS
+.DS_Store
+
+# Logs
+*.log
+
+# IDE
+.vscode/
