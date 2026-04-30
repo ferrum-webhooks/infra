@@ -18,24 +18,8 @@ using Docker Compose.
 ## Architecture
 
 ```text
-            ┌──────────────┐
-            │   Gateway    │
-            └──────┬───────┘
-                   │
-                   ▼
-            ┌──────────────┐
-            │    Redis     │
-            └──────┬───────┘
-                   │
-                   ▼
-            ┌──────────────┐
-            │    Worker    │
-            └──────┬───────┘
-                   │
-                   ▼
-            ┌──────────────┐
-            │ PostgreSQL   │
-            └──────────────┘
+Client → Gateway ──→ PostgreSQL
+              └──→ Redis ──→ Worker → PostgreSQL
 ```
 
 ---
