@@ -32,7 +32,8 @@ services:
       retries: 10
 
   gateway:
-    build: ../ferrum-webhook-gateway
+    # build: ../ferrum-webhook-gateway
+    image: ferrum/gateway:dev
     ports:
       - "8000:8000"
     environment:
@@ -50,7 +51,8 @@ services:
         condition: service_healthy
 
   worker:
-    build: ../ferrum-webhook-worker
+    # build: ../ferrum-webhook-worker
+    image: ferrum/worker:dev
     environment:
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
