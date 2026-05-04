@@ -52,6 +52,8 @@ services:
   worker:
     # build: ../ferrum-webhook-worker
     image: ferrum/worker:dev
+    ports:
+      - "8001:8001"
     environment:
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
