@@ -18,9 +18,13 @@ using Docker Compose.
 ## Architecture
 
 ```text
-Client → Gateway ──→ PostgreSQL
-              └──→ Redis ──→ Worker → PostgreSQL
+Client → Gateway → PostgreSQL
+              ↓
+           Redis → Worker
+              ↓
+         Prometheus
 ```
+Images pulled from GHCR
 
 ---
 
@@ -122,7 +126,24 @@ Prometheus scrapes:
 ```worker_queue_delay_seconds_sum / worker_queue_delay_seconds_count```
 ##### p95 queue delay
 ```histogram_quantile(0.95, rate(worker_queue_delay_seconds_bucket[1m]))```
+---
 
+## CI/CD Integration
+
+---
+
+Infrastructure now runs **pre-built images from GHCR**, not local builds.
+
+### Image Configuration
+
+Defined via `.env`:
+
+```env
+GATEWAY_IMAGE=ghcr.io/<your-username>/<repo>/gateway:latest
+WORKER_IMAGE=ghcr.io/<your-username>/<repo>/worker:latest
+```
+
+---
 ## Known Issues
 
 ---
@@ -194,9 +215,9 @@ curl http://localhost:8001/metrics
 
 ## Status
 
-✅ Phase 5 — Observability
-✅ Metrics + Prometheus integrated
-✅ Multi-service environment working
+🚧 Phase 6 — CI/CD Integrated  
+✅ Running from registry images  
+✅ No local builds required  
 
 ---
 
