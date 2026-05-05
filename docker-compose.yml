@@ -31,7 +31,7 @@ services:
 
   gateway:
     # build: ../ferrum-webhook-gateway
-    image: ferrum/gateway:dev
+    image: ghcr.io/${GITHUB_ORG}/gateway:${IMAGE_TAG}
     ports:
       - "8000:8000"
     environment:
@@ -51,7 +51,7 @@ services:
 
   worker:
     # build: ../ferrum-webhook-worker
-    image: ferrum/worker:dev
+    image: ghcr.io/${GITHUB_ORG}/worker:${IMAGE_TAG}
     ports:
       - "8001:8001"
     environment:
