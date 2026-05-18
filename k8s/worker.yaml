@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: ferrum
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: worker
+          image: ghcr.io/ferrum-webhooks/worker:latest
+          ports:
+            - containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: ferrum-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: worker
+  namespace: ferrum
+spec:
+  selector:
+    app: worker
+  ports:
+    - port: 8001
+      targetPort: 8001
