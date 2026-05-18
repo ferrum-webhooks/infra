@@ -16,9 +16,6 @@ spec:
       containers:
         - name: redis
           image: redis:7
-          envFrom:
-            - configMapRef:
-                name: ferrum-config
 ---
 apiVersion: v1
 kind: Service

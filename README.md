@@ -221,8 +221,10 @@ DB_PASSWORD=password
 REDIS_HOST=redis
 REDIS_PORT=6379
 
-GATEWAY_IMAGE=ghcr.io/ferrum-webhooks/gateway:latest
-WORKER_IMAGE=ghcr.io/ferrum-webhooks/worker:latest
+GITHUB_ORG=ferrum-webhooks
+GATEWAY_REPO=ferrum-webhook-gateway
+WORKER_REPO=ferrum-webhook-worker
+IMAGE_TAG=latest
 ```
 
 ---
@@ -361,15 +363,20 @@ kubectl get configmap ferrum-config -n ferrum
 Then create the postgres initialisation for postgres to pick up from:
 
 ```bash
-kubectl create configmap postgres-init \           
+kubectl create configmap postgres-init \
   --from-file=postgres/init.sh \
-  -n ferrum                            
+  -n ferrum                          
 ```
 
 Verify:
 
 ```bash
 kubectl get configmap postgres-init -n ferrum
+```
+
+Create Postgres secret:
+```bash
+kubectl apply -f k8s/postgres-secret.yaml
 ```
 
 ---
@@ -394,10 +401,27 @@ kubectl get secrets -n ferrum
 
 ---
 
-# Step 5 — Deploy Infrastructure
+# Step 5 - Create Persistent Volume Claim
 
 ```bash
-kubectl apply -f k8s/
+kubectl apply -f k8s/postgres-pvc.yaml
+```
+
+Verify:
+```bash
+kubectl get pvc -n ferrum
+```
+
+---
+
+# Step 6 — Deploy Infrastructure
+
+```bash
+export $(cat .env | xargs)
+kubectl apply -f k8s/postgres.yaml
+kubectl apply -f k8s/redis.yaml
+envsubst < k8s/gateway.yaml | kubectl apply -f -
+envsubst < k8s/worker.yaml | kubectl apply -f -
 ```
 
 This creates:
@@ -408,7 +432,7 @@ This creates:
 
 ---
 
-# Step 6 — Observe Pods
+# Step 7 — Observe Pods
 
 ```bash
 kubectl get pods -n ferrum -w
@@ -416,7 +440,7 @@ kubectl get pods -n ferrum -w
 
 ---
 
-# Step 7 — Access Gateway
+# Step 8 — Access Gateway
 
 Get service info:
 
@@ -428,26 +452,14 @@ OR, to open directly:
 minikube service gateway -n ferrum
 ```
 
-Get Minikube IP:
-
-```bash
-minikube ip
-```
-
-Open:
-
-```text
-http://<minikube-ip>:<minikube-port>
-```
-
 ---
 
-# Step 8 — Test End-to-End Flow
+# Step 9 — Test End-to-End Flow
 
 ## Create webhook
 
 ```bash
-curl -X POST http://<minikube-ip>:<minikube-port>/webhooks \
+curl -X POST http://<url:port>/webhooks \
 -H "Content-Type: application/json" \
 -d '{
   "url":"https://webhook.site/your-id",
@@ -460,7 +472,7 @@ curl -X POST http://<minikube-ip>:<minikube-port>/webhooks \
 ## Send event
 
 ```bash
-curl -X POST http://<minikube-ip>:<minikube-port>/events \
+curl -X POST http://<url:port>/events \
 -H "Content-Type: application/json" \
 -d '{
   "payload":{"hello":"world"},
