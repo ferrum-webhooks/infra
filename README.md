@@ -1,4 +1,4 @@
-# Ferrum — Infrastructure Repository (Phase 7)
+# Ferrum — Infrastructure Repository (Phase 8)
 
 ## Overview
 
@@ -10,6 +10,7 @@ It is responsible for running the complete distributed system locally using:
 - Kubernetes (Minikube)
 - GitHub Container Registry (GHCR)
 - Prometheus monitoring
+- Horizontal Pod Autoscaling (HPA)
 
 This repo does **not** contain application business logic.
 
@@ -51,7 +52,7 @@ Instead, it provides:
                                   └────────┬───────┘
                                            │
                                            ▼
-                                External Webhook Endpoint
+                                External Webhook Endpoints
 ```
 
 ---
@@ -87,6 +88,10 @@ infra/
 │   ├── worker.yaml
 │   ├── postgres.yaml
 │   ├── redis.yaml
+│   ├── gateway-hpa.yaml
+│   ├── worker-hpa.yaml
+│   ├── postgres-pvc.yaml
+│   ├── postgres-secret.yaml
 │
 ├── postgres/
 │   └── init.sh
@@ -156,6 +161,10 @@ Phase 7 introduces Kubernetes concepts:
 | Namespace | logical isolation |
 | ReplicaSet | pod replication |
 | Pod | execution unit |
+| HPA | horizontal autoscaling |
+| PVC | persistent postgres storage |
+| Probes | readiness/liveness health checking |
+| Requests/Limits | autoscaling + scheduling |
 
 ---
 
@@ -170,6 +179,21 @@ Instead:
 
 This is the foundation of modern CI/CD systems.
 
+---
+
+## 6. Horizontal Pod Autoscaling
+Phase 8 introduces autoscaling.
+
+Kubernetes dynamically increases or decreases replicas based on:
+
+- CPU utilisation
+- observed workload
+
+This allows the system to:
+
+- absorb traffic spikes
+- scale elastically
+- reduce idle resource usage
 ---
 
 # Local Development Modes
@@ -422,25 +446,98 @@ kubectl apply -f k8s/postgres.yaml
 kubectl apply -f k8s/redis.yaml
 envsubst < k8s/gateway.yaml | kubectl apply -f -
 envsubst < k8s/worker.yaml | kubectl apply -f -
+
+
+kubectl apply -f k8s/gateway-hpa.yaml
+kubectl apply -f k8s/worker-hpa.yaml
 ```
 
+This creates:
 This creates:
 - deployments
 - services
 - pods
+- autoscalers
 - networking
-
+- persistent storage
 ---
 
-# Step 7 — Observe Pods
+# Step 7 - Load Test
 
+Create a load test configmap:
 ```bash
-kubectl get pods -n ferrum -w
+kubectl create configmap k6-test \
+  --from-file=tests/load-test.js \
+  -n ferrum
+```
+Run it:
+```bash
+kubectl run k6 \
+  --rm -i --tty \
+  --image=grafana/k6 \
+  --restart=Never \
+  -n ferrum \
+  --overrides='
+{
+  "spec": {
+    "containers": [
+      {
+        "name": "k6",
+        "image": "grafana/k6",
+        "command": ["k6", "run", "/scripts/load-test.js"],
+        "volumeMounts": [
+          {
+            "name": "scripts",
+            "mountPath": "/scripts"
+          }
+        ]
+      }
+    ],
+    "volumes": [
+      {
+        "name": "scripts",
+        "configMap": {
+          "name": "k6-test"
+        }
+      }
+    ]
+  }
+}'
+```
+
+Expected result would look something like:
+```bash
+  █ TOTAL RESULTS 
+
+    HTTP
+    http_req_duration..............: avg=368.2ms  min=39.5ms  med=318.97ms max=2.21s p(90)=603.9ms  p(95)=704.65ms
+      { expected_response:true }...: avg=368.2ms  min=39.5ms  med=318.97ms max=2.21s p(90)=603.9ms  p(95)=704.65ms
+    http_req_failed................: 0.00%  0 out of 8179
+    http_reqs......................: 8179   135.360515/s
+
+    EXECUTION
+    iteration_duration.............: avg=368.25ms min=39.55ms med=319.04ms max=2.21s p(90)=603.92ms p(95)=704.72ms
+    iterations.....................: 8179   135.360515/s
+    vus............................: 50     min=50        max=50
+    vus_max........................: 50     min=50        max=50
+
+    NETWORK
+    data_received..................: 1.9 MB 31 kB/s
+    data_sent......................: 1.7 MB 28 kB/s
 ```
 
 ---
 
-# Step 8 — Access Gateway
+# Step 8 — Observe Pods and verify autoscaling
+
+```bash
+kubectl get pods -n ferrum -w
+kubectl get hpa -n ferrum -w
+```
+
+---
+
+# Step 9 — Access Gateway
 
 Get service info:
 
@@ -454,7 +551,7 @@ minikube service gateway -n ferrum
 
 ---
 
-# Step 9 — Test End-to-End Flow
+# Step 10 — Test End-to-End Flow
 
 ## Create webhook
 
@@ -551,6 +648,60 @@ histogram_quantile(
 
 ---
 
+# Reliability Improvements
+---
+## Readiness Probes
+Gateway:
+```yaml
+readinessProbe:
+  httpGet:
+    path: /
+    port: 8000
+```
+Worker:
+```yaml
+readinessProbe:
+  httpGet:
+    path: /metrics
+    port: 8001
+```
+---
+## Liveness Probe
+Containers are automatically restarted if unhealthy.
+---
+## Resource Requests and Limits
+
+Every service now declares:
+
+- minimum CPU
+- minimum memory
+- maximum CPU
+- maximum memory
+
+Required for:
+
+- predictable scheduling
+- autoscaling
+- cluster stability
+---
+## Persistent PostgreSQL Storage
+
+Postgres now uses a PersistentVolumeClaim.
+
+Without this:
+
+- pod restart = total data loss
+---
+## Image Pull Policy
+
+Containers use:
+```yaml
+imagePullPolicy: Always
+```
+Ensures Kubernetes always pulls the newest image.
+
+---
+
 # CI/CD Pipeline Integration
 
 Phase 6 introduced automated image pipelines.
@@ -570,82 +721,6 @@ Push to GHCR
    ↓
 Kubernetes Pulls Image
 ```
-
----
-
-# Major Engineering Lessons from Phase 7
-
----
-
-## 1. Infrastructure != Application
-
-Your application can be correct while infrastructure fails.
-
-Examples:
-- bad secrets
-- image pull failure
-- networking issues
-- config drift
-
----
-
-## 2. Environment Consistency Matters
-
-Docker + Kubernetes ensure:
-- same runtime everywhere
-- same dependencies everywhere
-
----
-
-## 3. Configuration Drift is Dangerous
-
-You encountered:
-- mismatched DB credentials
-- missing ConfigMaps
-- secret mismatches
-
-This is one of the biggest real-world operational problems.
-
----
-
-## 4. Kubernetes is Declarative
-
-You do not manually start services.
-
-Instead:
-- define desired state
-- Kubernetes reconciles reality to match it
-
----
-
-# Common Failure Modes
-
----
-
-## ImagePullBackOff
-
-Causes:
-- wrong image
-- missing secret
-- bad GHCR token
-
----
-
-## CrashLoopBackOff
-
-Causes:
-- DB auth failure
-- migration failure
-- missing env vars
-
----
-
-## Connection Refused
-
-Causes:
-- postgres not ready
-- service mismatch
-- namespace mismatch
 
 ---
 
@@ -697,16 +772,20 @@ kubectl delete namespace ferrum
 
 ## Completed
 
-✅ Distributed architecture  
-✅ Dockerized services  
-✅ Redis queue system  
-✅ PostgreSQL persistence  
-✅ Metrics instrumentation  
-✅ Prometheus monitoring  
-✅ GitHub Actions CI/CD  
-✅ GHCR registry deployments  
-✅ Kubernetes orchestration  
-✅ Namespace isolation  
+✅ Distributed architecture
+✅ Dockerized services
+✅ Redis queue system
+✅ PostgreSQL persistence
+✅ Metrics instrumentation
+✅ Prometheus monitoring
+✅ GitHub Actions CI/CD
+✅ GHCR registry deployments
+✅ Kubernetes orchestration
+✅ Namespace isolation
+✅ Readiness/liveness probes
+✅ Persistent storage
+✅ Horizontal Pod Autoscaling
+✅ Load testing with k6
 
 ---
 
@@ -727,6 +806,8 @@ These are intentionally deferred:
 - Kafka/RabbitMQ migration
 - Helm charts
 - Terraform infrastructure
+- service mesh
+- distributed tracing
 
 ---
 
