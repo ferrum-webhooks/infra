@@ -1,0 +1,13 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+
+metadata:
+  name: gateway-pdb
+  namespace: ferrum
+
+spec:
+  minAvailable: 1
+
+  selector:
+    matchLabels:
+      app: gateway

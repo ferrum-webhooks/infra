@@ -5,6 +5,11 @@ metadata:
   namespace: ferrum
 spec:
   replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: worker
@@ -15,6 +20,7 @@ spec:
     spec:
       imagePullSecrets:
         - name: ghcr-secret
+      terminationGracePeriodSeconds: 30
       containers:
         - name: worker
           image: ghcr.io/${GITHUB_ORG}/worker:${IMAGE_TAG}
@@ -36,6 +42,16 @@ spec:
               port: 8001
             initialDelaySeconds: 20
             periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /metrics
+              port: 8001
+            failureThreshold: 30
+            periodSeconds: 2
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 10"]
           resources:
             requests:
               cpu: "100m"
