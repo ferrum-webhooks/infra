@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ferrum-config
+  namespace: ferrum
+data:
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_NAME: ferrum_db
+  DB_USER: ferrum_user
+  DB_PASSWORD: password
+
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_DB: postgres
+
+  GITHUB_ORG: ferrum-webhooks
+  GATEWAY_REPO: ferrum-webhook-gateway
+  WORKER_REPO: ferrum-webhook-worker
+  IMAGE_TAG: latest

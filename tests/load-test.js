@@ -5,6 +5,14 @@ export const options = {
   duration: '60s',
 };
 
+export function setup() {
+  http.post(
+    'http://gateway.ferrum.svc.cluster.local:8000/webhooks',
+    JSON.stringify({ url: 'https://webhook.site/your-id', event_type: 'test' }),
+    { headers: { 'Content-Type': 'application/json' } }
+  );
+}
+
 export default function () {
   http.post(
     'http://gateway.ferrum.svc.cluster.local:8000/events',

@@ -352,7 +352,7 @@ STATUS = Ready
 Ferrum runs in an isolated namespace.
 
 ```bash
-kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/namespace/namespace.yaml
 ```
 
 Verify:
@@ -373,34 +373,20 @@ ferrum
 Environment variables are injected using ConfigMaps.
 
 ```bash
-kubectl create configmap ferrum-config \
-  --from-env-file=.env \
-  -n ferrum
+kubectl apply -f k8s/config/
 ```
 
 Verify:
 
 ```bash
 kubectl get configmap ferrum-config -n ferrum
-```
-
-Then create the postgres initialisation for postgres to pick up from:
-
-```bash
-kubectl create configmap postgres-init \
-  --from-file=postgres/init.sh \
-  -n ferrum                          
-```
-
-Verify:
-
-```bash
 kubectl get configmap postgres-init -n ferrum
+kubectl get configmap prometheus-config -n ferrum
 ```
 
 Create Postgres secret:
 ```bash
-kubectl apply -f k8s/postgres-secret.yaml
+kubectl apply -f k8s/secret/postgres-secret.yaml
 ```
 
 ---
@@ -428,7 +414,7 @@ kubectl get secrets -n ferrum
 # Step 5 - Create Persistent Volume Claim
 
 ```bash
-kubectl apply -f k8s/postgres-pvc.yaml
+kubectl apply -f k8s/pvc/postgres-pvc.yaml
 ```
 
 Verify:
@@ -442,14 +428,15 @@ kubectl get pvc -n ferrum
 
 ```bash
 export $(cat .env | xargs)
-kubectl apply -f k8s/postgres.yaml
-kubectl apply -f k8s/redis.yaml
-envsubst < k8s/gateway.yaml | kubectl apply -f -
-envsubst < k8s/worker.yaml | kubectl apply -f -
+kubectl apply -f k8s/services/postgres.yaml
+kubectl apply -f k8s/services/redis.yaml
+kubectl apply -f k8s/services/prometheus.yaml
+kubectl apply -f k8s/services/grafana.yaml
+envsubst < k8s/services/gateway.yaml | kubectl apply -f -
+envsubst < k8s/services/worker.yaml | kubectl apply -f -
 
-
-kubectl apply -f k8s/gateway-hpa.yaml
-kubectl apply -f k8s/worker-hpa.yaml
+kubectl apply -f k8s/hpa/gateway-hpa.yaml
+kubectl apply -f k8s/hpa/worker-hpa.yaml
 ```
 
 This creates:
@@ -798,8 +785,6 @@ These are intentionally deferred:
 - dead letter queue
 - rate limiting
 - horizontal autoscaling
-- readiness probes
-- liveness probes
 - Grafana dashboards
 - tracing
 - async SQLAlchemy
