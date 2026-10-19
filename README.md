@@ -1,6 +1,6 @@
 # infra
 
-Everything for running, deploying and measuring **Ferrum**, a service that delivers webhooks reliably ([API](https://github.com/pratishtha-abrol/ferrum-webhook-gateway) + [worker](https://github.com/pratishtha-abrol/ferrum-webhook-worker)). No application code lives here.
+Everything for running, deploying and measuring **Ferrum**, a service that delivers webhooks reliably ([API](https://github.com/ferrum-webhooks/ferrum-webhook-gateway) + [worker](https://github.com/ferrum-webhooks/ferrum-webhook-worker)). No application code lives here.
 
 | Folder | What it holds |
 |---|---|
@@ -35,7 +35,7 @@ k8s/secret/create-secrets.sh ferrum                 # makes random secrets in th
 kubectl apply -f k8s/services/postgres.yaml -f k8s/services/redis.yaml -f k8s/services/jaeger.yaml
 helm upgrade --install ferrum charts/ferrum -n ferrum --set image.tag=$TAG --set image.pullPolicy=IfNotPresent
 ```
-More detail (health checks, sizing, plain-manifest route): [deployment guide](https://github.com/pratishtha-abrol/ferrum/blob/main/docs/deployment.md).
+More detail (health checks, sizing, plain-manifest route): [deployment guide](https://github.com/ferrum-webhooks/docs/blob/main/deployment.md).
 
 ## Secrets
 
