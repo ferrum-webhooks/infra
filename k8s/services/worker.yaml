@@ -24,34 +24,33 @@ spec:
       containers:
         - name: worker
           image: ghcr.io/${GITHUB_ORG}/worker:${IMAGE_TAG}
-          imagePullPolicy: Always
+          imagePullPolicy: ${IMAGE_PULL_POLICY}
           ports:
             - containerPort: 8001
           envFrom:
             - configMapRef:
                 name: ferrum-config
+          env:
+            - name: DB_PASSWORD
+              valueFrom: {secretKeyRef: {name: postgres-secret, key: DB_PASSWORD}}
           readinessProbe:
             httpGet:
-              path: /metrics
+              path: /readyz
               port: 8001
             initialDelaySeconds: 10
             periodSeconds: 5
           livenessProbe:
             httpGet:
-              path: /metrics
+              path: /healthz        # consumer/relay/scheduler heartbeats, not just 'metrics server is up'
               port: 8001
             initialDelaySeconds: 20
             periodSeconds: 10
           startupProbe:
             httpGet:
-              path: /metrics
+              path: /healthz
               port: 8001
             failureThreshold: 30
             periodSeconds: 2
-          lifecycle:
-            preStop:
-              exec:
-                command: ["/bin/sh", "-c", "sleep 10"]
           resources:
             requests:
               cpu: "100m"

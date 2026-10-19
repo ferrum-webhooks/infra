@@ -1,0 +1,34 @@
+# Schema migrations run ONCE per release, before the gateway/worker rollout -- not in every pod's
+# startup (that raced under N replicas and rolling updates).
+#   kubectl delete job migrate -n ferrum --ignore-not-found
+#   envsubst < k8s/jobs/migrate.yaml | kubectl apply -f -
+#   kubectl wait --for=condition=complete job/migrate -n ferrum --timeout=120s
+#   envsubst < k8s/services/gateway.yaml | kubectl apply -f -   # then roll out
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrate
+  namespace: ferrum
+spec:
+  backoffLimit: 4
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: migrate
+          image: ghcr.io/${GITHUB_ORG}/gateway:${IMAGE_TAG}
+          imagePullPolicy: ${IMAGE_PULL_POLICY}
+          command: ["python", "-m", "alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef:
+                name: ferrum-config
+          env:
+            - {name: TESTING, value: "false"}
+            - name: DB_PASSWORD
+              valueFrom: {secretKeyRef: {name: postgres-secret, key: DB_PASSWORD}}
+          resources:
+            requests: {cpu: "50m", memory: "128Mi"}
+            limits: {cpu: "250m", memory: "256Mi"}

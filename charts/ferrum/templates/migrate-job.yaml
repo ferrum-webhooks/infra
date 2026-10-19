@@ -1,0 +1,31 @@
+{{- if .Values.migrations.enabled }}
+# Runs `alembic upgrade head` once per release, BEFORE any new pod is created. A failure aborts the release.
+# Uses inline env (no ConfigMap): hooks run before the release's own resources exist.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-migrate
+  labels: {{- include "ferrum.labels" (dict "root" . "name" "migrate") | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: {{ .Values.migrations.backoffLimit }}
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      {{- include "ferrum.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: migrate
+          image: {{ include "ferrum.image" (dict "root" . "name" .Values.image.gatewayName) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "-m", "alembic", "upgrade", "head"]
+          env:
+            {{- include "ferrum.dbEnv" . | nindent 12 }}
+            - {name: TESTING, value: "false"}
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: 250m, memory: 256Mi}
+{{- end }}

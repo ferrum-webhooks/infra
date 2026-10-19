@@ -12,3 +12,12 @@
 
 # IDE
 .vscode/
+
+# Real secrets are never committed: generate them with k8s/secret/create-secrets.sh
+k8s/secret/*.yaml
+!k8s/secret/*.example.yaml
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc

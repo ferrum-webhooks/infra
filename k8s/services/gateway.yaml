@@ -24,15 +24,20 @@ spec:
       containers:
         - name: gateway
           image: ghcr.io/${GITHUB_ORG}/gateway:${IMAGE_TAG}
-          imagePullPolicy: Always
+          imagePullPolicy: ${IMAGE_PULL_POLICY}
           ports:
             - containerPort: 8000
           envFrom:
             - configMapRef:
                 name: ferrum-config
+            - secretRef:
+                name: ferrum-secret
+          env:
+            - name: DB_PASSWORD
+              valueFrom: {secretKeyRef: {name: postgres-secret, key: DB_PASSWORD}}
           readinessProbe:
             httpGet:
-              path: /
+              path: /readyz        # Postgres reachable (Redis is optional for the gateway)
               port: 8000
             initialDelaySeconds: 10
             periodSeconds: 5
@@ -40,7 +45,7 @@ spec:
             failureThreshold: 3
           livenessProbe:
             httpGet:
-              path: /
+              path: /healthz       # process only: a DB blip must not restart pods
               port: 8000
             initialDelaySeconds: 20
             periodSeconds: 10
@@ -48,21 +53,21 @@ spec:
             failureThreshold: 3
           startupProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: 8000
             failureThreshold: 30
             periodSeconds: 2
           lifecycle:
-            preStop:
+            preStop:            # let endpoints/LB drop the pod before uvicorn stops accepting
               exec:
                 command: ["/bin/sh", "-c", "sleep 10"]
           resources:
             requests:
               cpu: "100m"
-              memory: "128Mi"
+              memory: "192Mi"
             limits:
               cpu: "500m"
-              memory: "256Mi"
+              memory: "384Mi"   # 256Mi OOM-killed under 50 concurrent logins (see HASH_CONCURRENCY)
 ---
 apiVersion: v1
 kind: Service

@@ -1,0 +1,57 @@
+{{- $name := .Values.image.gatewayName }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-gateway
+  labels: {{- include "ferrum.labels" (dict "root" . "name" "gateway") | nindent 4 }}
+spec:
+  {{- if not .Values.gateway.autoscaling.enabled }}
+  replicas: {{ .Values.gateway.replicas }}
+  {{- end }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxUnavailable: 0, maxSurge: 1}
+  selector:
+    matchLabels: {app.kubernetes.io/name: gateway, app.kubernetes.io/instance: {{ .Release.Name }}}
+  template:
+    metadata:
+      labels: {{- include "ferrum.labels" (dict "root" . "name" "gateway") | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}{{ toYaml . | nindent 8 }}{{- end }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.gateway.terminationGracePeriodSeconds }}
+      {{- include "ferrum.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: gateway
+          image: {{ include "ferrum.image" (dict "root" . "name" .Values.image.gatewayName) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports: [{name: http, containerPort: {{ .Values.gateway.port }}}]
+          envFrom: [{configMapRef: {name: {{ .Release.Name }}-config}}]
+          env:
+            {{- include "ferrum.dbEnv" . | nindent 12 }}
+            - name: JWT_SECRET
+              valueFrom: {secretKeyRef: {name: {{ .Values.auth.jwtSecret.name }}, key: {{ .Values.auth.jwtSecret.key }}}}
+            {{- with .Values.extraEnv }}{{ toYaml . | nindent 12 }}{{- end }}
+          startupProbe:  {httpGet: {path: /healthz, port: http}, periodSeconds: 2, failureThreshold: 30}
+          readinessProbe: {httpGet: {path: /readyz, port: http}, periodSeconds: 5, timeoutSeconds: 2, failureThreshold: 3}
+          livenessProbe:  {httpGet: {path: /healthz, port: http}, periodSeconds: 10, timeoutSeconds: 2, failureThreshold: 3}
+          lifecycle:
+            preStop: {exec: {command: ["/bin/sh", "-c", "sleep {{ .Values.gateway.preStopSleepSeconds }}"]}}
+          resources: {{- toYaml .Values.gateway.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-gateway
+  labels: {{- include "ferrum.labels" (dict "root" . "name" "gateway") | nindent 4 }}
+spec:
+  type: {{ .Values.gateway.service.type }}
+  selector: {app.kubernetes.io/name: gateway, app.kubernetes.io/instance: {{ .Release.Name }}}
+  ports:
+    - name: http
+      port: {{ .Values.gateway.port }}
+      targetPort: http
+      {{- if and (eq .Values.gateway.service.type "NodePort") .Values.gateway.service.nodePort }}
+      nodePort: {{ .Values.gateway.service.nodePort }}
+      {{- end }}

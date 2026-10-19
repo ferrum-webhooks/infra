@@ -1,0 +1,28 @@
+{{- range $c := list "gateway" "worker" }}
+{{- $v := index $.Values $c }}
+{{- if $v.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $.Release.Name }}-{{ $c }}
+spec:
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: {{ $.Release.Name }}-{{ $c }}}
+  minReplicas: {{ $v.autoscaling.minReplicas }}
+  maxReplicas: {{ $v.autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource: {name: cpu, target: {type: Utilization, averageUtilization: {{ $v.autoscaling.targetCPUUtilizationPercentage }}}}
+{{- end }}
+{{- if $v.pdb.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $.Release.Name }}-{{ $c }}
+spec:
+  minAvailable: {{ $v.pdb.minAvailable }}
+  selector:
+    matchLabels: {app.kubernetes.io/name: {{ $c }}, app.kubernetes.io/instance: {{ $.Release.Name }}}
+{{- end }}
+{{- end }}

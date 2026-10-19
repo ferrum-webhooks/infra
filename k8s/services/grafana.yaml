@@ -29,7 +29,8 @@ spec:
               value: admin
 
             - name: GF_SECURITY_ADMIN_PASSWORD
-              value: admin
+              valueFrom:
+                secretKeyRef: {name: grafana-secret, key: ADMIN_PASSWORD}
 
           volumeMounts:
             - name: grafana-datasource-volume

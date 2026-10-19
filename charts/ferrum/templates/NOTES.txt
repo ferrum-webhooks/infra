@@ -1,0 +1,7 @@
+Ferrum {{ .Chart.AppVersion }} installed as "{{ .Release.Name }}".
+
+API (port-forward):  kubectl port-forward svc/{{ .Release.Name }}-gateway {{ .Values.gateway.port }}:{{ .Values.gateway.port }}
+Smoke test:          python infra/tests/smoke.py --base http://localhost:{{ .Values.gateway.port }} --target <a public https URL>
+
+Prerequisites that this chart does NOT create: Secrets {{ .Values.database.passwordSecret.name }} (key {{ .Values.database.passwordSecret.key }})
+and {{ .Values.auth.jwtSecret.name }} (key {{ .Values.auth.jwtSecret.key }}); Postgres at {{ .Values.database.host }}, Redis at {{ .Values.redis.host }}.

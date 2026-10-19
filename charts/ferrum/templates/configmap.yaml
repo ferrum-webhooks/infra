@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  labels: {{- include "ferrum.labels" (dict "root" . "name" "ferrum") | nindent 4 }}
+data:
+  REDIS_HOST: {{ .Values.redis.host | quote }}
+  REDIS_PORT: {{ .Values.redis.port | quote }}
+  JWT_TTL_SECONDS: {{ .Values.auth.jwtTtlSeconds | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.tracing.endpoint | quote }}
+  OTEL_TRACES_SAMPLER_RATIO: {{ .Values.tracing.samplerRatio | quote }}
+  ALLOW_PRIVATE_WEBHOOK_TARGETS: {{ .Values.security.allowPrivateWebhookTargets | quote }}
+  ALLOW_INSECURE_WEBHOOKS: {{ .Values.security.allowInsecureWebhooks | quote }}
+  RATE_LIMIT_CAPACITY: {{ .Values.rateLimit.capacity | quote }}
+  RATE_LIMIT_REFILL_PER_SEC: {{ .Values.rateLimit.refillPerSecond | quote }}
+  AUTH_RATE_LIMIT_CAPACITY: {{ .Values.rateLimit.authCapacity | quote }}
+  AUTH_RATE_LIMIT_REFILL_PER_SEC: {{ .Values.rateLimit.authRefillPerSecond | quote }}
+  MAX_ATTEMPTS: {{ .Values.delivery.maxAttempts | quote }}
+  RETRY_BASE_SECONDS: {{ .Values.delivery.retryBaseSeconds | quote }}
+  WORKER_CONCURRENCY: {{ .Values.delivery.workerConcurrency | quote }}

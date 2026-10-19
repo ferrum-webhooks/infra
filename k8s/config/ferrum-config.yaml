@@ -11,13 +11,20 @@ data:
   DB_PORT: "5432"
   DB_NAME: ferrum_db
   DB_USER: ferrum_user
-  DB_PASSWORD: password
+  # DB_PASSWORD is NOT here: it comes from the postgres-secret Secret (see the Deployments)
 
-  POSTGRES_USER: postgres
-  POSTGRES_PASSWORD: postgres
-  POSTGRES_DB: postgres
+  MAX_ATTEMPTS: "5"
+  RATE_LIMIT_CAPACITY: "100"
+  RATE_LIMIT_REFILL_PER_SEC: "50"
+
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+  OTEL_TRACES_SAMPLER_RATIO: "0.1"   # 100% at load OOM-killed in-memory Jaeger and cost gateway CPU; errors-always needs tail sampling (Project 3)
+  # SSRF guard. "false" = block private/loopback/link-local/cluster targets (production setting).
+  # Only set "true" for local tests that deliver to an in-cluster receiver.
+  ALLOW_PRIVATE_WEBHOOK_TARGETS: "false"
 
   GITHUB_ORG: ferrum-webhooks
   GATEWAY_REPO: ferrum-webhook-gateway
   WORKER_REPO: ferrum-webhook-worker
   IMAGE_TAG: latest
+  IMAGE_PULL_POLICY: Always   # IfNotPresent for images loaded with `minikube image load`
